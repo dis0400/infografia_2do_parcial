@@ -37,17 +37,28 @@ var final_touch = Vector2.ZERO
 var is_controlling = false
 
 # scoring variables and signals
-
-
+signal update_score(new_score)
+var streak=0
+var old_score=0
 # counter variables and signals
-
-
+signal update_timer(new_time)
+signal update_move_counter(new_move_counter)
+var timer = true
+var counter = 60
+var move_counter = 30
+var target_score=500
+var won = false
 # Called when the node enters the scene tree for the first time.
 func _ready():
 	state = MOVE
 	randomize()
 	all_pieces = make_2d_array()
 	spawn_pieces()
+	if timer:
+		update_timer.emit(counter)
+		get_node("clock").start()
+	else:
+		update_move_counter.emit(move_counter)
 
 func make_2d_array():
 	var array = []
@@ -100,6 +111,10 @@ func match_at(i, j, color):
 		if all_pieces[i][j - 1] != null and all_pieces[i][j - 2] != null:
 			if all_pieces[i][j - 1].color == color and all_pieces[i][j - 2].color == color:
 				return true
+
+func restart():
+	if Input.is_key_pressed(KEY_R):
+		get_tree().reload_current_scene()
 
 func touch_input():
 	var mouse_pos = get_global_mouse_position()
@@ -160,6 +175,8 @@ func touch_difference(grid_1, grid_2):
 func _process(delta):
 	if state == MOVE:
 		touch_input()
+	if state == WAIT:
+		restart()
 
 func find_matches():
 	for i in width:
@@ -198,15 +215,23 @@ func find_matches():
 	get_parent().get_node("destroy_timer").start()
 	
 func destroy_matched():
+	streak+=1
+	var number_of_matched=0
 	var was_matched = false
 	for i in width:
 		for j in height:
 			if all_pieces[i][j] != null and all_pieces[i][j].matched:
 				was_matched = true
+				number_of_matched+=1
 				all_pieces[i][j].queue_free()
 				all_pieces[i][j] = null
 				
 	move_checked = true
+	old_score+=number_of_matched*10*streak
+	update_score.emit(old_score)
+	if old_score >= target_score:
+		won = true
+		game_over()
 	if was_matched:
 		get_parent().get_node("collapse_timer").start()
 	else:
@@ -258,7 +283,12 @@ func check_after_refill():
 				get_parent().get_node("destroy_timer").start()
 				return
 	state = MOVE
-	
+	streak=0
+	if move_counter > 0:
+		move_counter-=1
+		update_move_counter.emit(move_counter)
+	else:
+		game_over()
 	move_checked = false
 
 func _on_destroy_timer_timeout():
@@ -274,4 +304,16 @@ func _on_refill_timer_timeout():
 	
 func game_over():
 	state = WAIT
-	print("game over")
+	print("Lastima, Perdiste :( )")
+	if won:
+		get_parent().get_node("winner").show()
+	else:
+		get_parent().get_node("gameover").show()
+
+func _on_clock_timeout():
+	if counter>0:
+		counter-=1
+		update_timer.emit(counter)
+	else:
+		game_over()
+	
