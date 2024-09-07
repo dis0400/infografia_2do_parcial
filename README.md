@@ -1,1 +1,4 @@
-# info_2do_parcial_base
+# info 2do parcial
+
+Alexia Marin
+INfografia II-2024
